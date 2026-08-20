@@ -39,4 +39,4 @@ firebase-*.json
 *.ntvs*
 *.njsproj
 *.sln
-*.sw?
+*.sw?.vercel

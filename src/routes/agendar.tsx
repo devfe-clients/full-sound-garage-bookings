@@ -1,13 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Check, ChevronLeft, Clock } from "lucide-react";
+import { Check, ChevronLeft, Clock, Sparkles } from "lucide-react";
 import { BrandHeader } from "@/components/BrandHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { signInWithGoogle } from "@/lib/auth";
+import { signInWithGoogle, useCurrentUser } from "@/lib/auth";
 import {
   SERVICES,
   TIME_SLOTS,
@@ -48,10 +48,12 @@ export const Route = createFileRoute("/agendar")({
 
 function AgendarPage() {
   const days = useMemo(() => availableDays(14), []);
+  const currentUser = useCurrentUser();
   const [service, setService] = useState<ServiceId | null>(null);
   const [date, setDate] = useState<string | null>(null);
   const [time, setTime] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [step, setStep] = useState<"form" | "review">("form");
   const [form, setForm] = useState({
     name: "",
@@ -74,9 +76,34 @@ async function handleSubmit(e: React.FormEvent) {
   e.preventDefault();
 }
 
-  if (step === "review" && service && date && time) {
+  if (step === "review" && service && date && time && !done) {
   return (
     <div className="min-h-screen bg-background">
+      {done && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-background p-8 text-center shadow-2xl">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground">
+              <Sparkles className="h-8 w-8" />
+            </div>
+            <h2 className="mt-5 text-xl font-bold">Agendamento enviado!</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {serviceName(service!)} · {formatDate(date!)} às {time}
+            </p>
+            <p className="mt-3 text-xs text-muted-foreground">
+              A garagem vai confirmar sua reserva em breve. Pagamento no local.
+            </p>
+            <div className="mt-6 flex flex-col gap-2">
+              <Button asChild className="w-full">
+                <Link to="/meus-agendamentos">Ver meus agendamentos</Link>
+              </Button>
+              <Button asChild variant="outline" className="w-full">
+                <Link to="/">Voltar ao início</Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <BrandHeader />
       <main className="mx-auto max-w-xl px-4 py-8">
         <button
@@ -110,58 +137,33 @@ async function handleSubmit(e: React.FormEvent) {
 <Button
   size="lg"
   className="w-full"
-  onClick={async () => {
-    const user = await signInWithGoogle();
-    if (!user) return;
+  disabled={submitting}
+onClick={async () => {
+  if (submitting) return;
+  setSubmitting(true);
+  try {
+    const loggedUser = currentUser ?? await signInWithGoogle();
+    if (!loggedUser) return;
     const booking = await createBooking({
       service: service!,
       date: date!,
       time: time!,
-      customer: { name: form.name, phone: form.phone, email: user.email },
+      customer: { name: form.name, phone: form.phone, email: loggedUser.email },
       vehicle: { brand: form.brand, model: form.model, year: form.year },
       notes: form.notes,
     });
     setDone(booking.id);
-  }}
+  } finally {
+    setSubmitting(false);
+  }
+}}
 >
-  Confirmar agendamento
+  {submitting ? "Enviando..." : "Confirmar agendamento"}
 </Button>
           <Button variant="outline" className="w-full" onClick={() => setStep("form")}>
             Voltar e editar
           </Button>
         </div>
-      </main>
-    </div>
-  );
-}
-
-if (done) {
-  return (
-    <div className="min-h-screen bg-background">
-      <BrandHeader />
-      <main className="mx-auto max-w-xl px-4 py-12">
-        {/* Confirmação */}
-        <div className="text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground">
-            <Check className="h-8 w-8" />
-          </div>
-          <h1 className="mt-6 text-2xl font-bold">Agendamento confirmado!</h1>
-          <p className="mt-2 text-muted-foreground">
-            {serviceName(service!)} · {formatDate(date!)} às {time}
-          </p>
-          <p className="mt-4 text-sm text-muted-foreground">
-            A garagem vai revisar e marcar como <strong>reserva confirmada</strong>. Pagamento no local.
-          </p>
-        </div>
-
-<div className="mt-8 flex flex-col gap-3">
-  <Button asChild className="w-full">
-    <Link to="/meus-agendamentos">Ver meus agendamentos</Link>
-  </Button>
-  <Button asChild variant="outline" className="w-full">
-    <Link to="/">Voltar ao início</Link>
-  </Button>
-</div>
       </main>
     </div>
   );

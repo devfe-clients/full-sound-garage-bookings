@@ -19,6 +19,7 @@ import {
   createBooking,
   type Booking,
   type BookingStatus,
+  useAllBookings,
 } from "@/lib/booking-store";
 
 export const Route = createFileRoute("/meus-agendamentos")({
@@ -57,6 +58,7 @@ function ReschedulePanel({
   const [time, setTime] = useState<string | null>(null);
 
   const { takenTimes: taken } = useDayBookings(date ?? "");
+  const { bookings: allBookings } = useAllBookings(); 
   const todayIso = toISODate(new Date());
 
 async function confirm() {
@@ -81,7 +83,7 @@ async function confirm() {
       <div className="flex gap-2 overflow-x-auto pb-1">
         {days.map((d) => {
           const iso = toISODate(d);
-          const { takenTimes: dayTaken } = useDayBookings(iso);
+ const dayTaken = takenSlots(allBookings, iso); 
 const rem = TIME_SLOTS.length - dayTaken.length;
           const full = rem === 0;
           const isToday = iso === todayIso;
@@ -154,7 +156,9 @@ const rem = TIME_SLOTS.length - dayTaken.length;
 function MeusAgendamentosPage() {
   const user = useCurrentUser();
   const { bookings, loading } = useMyBookings(user?.email ?? "");
-    if (loading) {
+  const [rescheduling, setRescheduling] = useState<string | null>(null);
+
+  if (loading) {
     return (
       <div className="min-h-screen bg-background">
         <BrandHeader />
@@ -164,7 +168,6 @@ function MeusAgendamentosPage() {
       </div>
     );
   }
-  const [rescheduling, setRescheduling] = useState<string | null>(null);
 
   const ativos = bookings
     .filter((b) => b.status === "pendente" || b.status === "confirmada")

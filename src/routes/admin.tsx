@@ -42,8 +42,8 @@ function AdminPage() {
   const user = useCurrentUser();
   const { bookings, loading } = useAllBookings();
 
-  //proteção da rota admin
-  const isAdmin = user?.email === "SEU_EMAIL_AQUI@gmail.com";
+  const adminEmails = (import.meta.env["VITE_ADMIN_EMAILS"] ?? "").split(",").map((e: string) => e.trim());
+const isAdmin = !!user?.email && adminEmails.includes(user.email);
 
   if (!user || !isAdmin) {
     return (

@@ -18,11 +18,8 @@ export function BrandHeader() {
   <Link to="/agendar" className="text-foreground hover:text-primary">
     Agendar
   </Link>
-  <Link to="/meus-agendamentos" className="text-muted-foreground hover:text-primary">
+  <Link to="/meus-agendamentos" search={{ novo: undefined }} className="text-muted-foreground hover:text-primary">
     Meus agendamentos
-  </Link>
-  <Link to="/admin" className="text-muted-foreground hover:text-primary">
-    Painel
   </Link>
 </nav>
       </div>

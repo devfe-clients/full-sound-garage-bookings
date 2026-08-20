@@ -119,8 +119,8 @@ export function toISODate(d: Date) {
 }
 
 export function formatDate(iso: string) {
-  const [y, m, d] = iso.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("pt-BR", {
+  const parts = iso.split("-").map(Number);
+  return new Date(parts[0] ?? 2026, (parts[1] ?? 1) - 1, parts[2] ?? 1).toLocaleDateString("pt-BR", {
     weekday: "short",
     day: "2-digit",
     month: "short",

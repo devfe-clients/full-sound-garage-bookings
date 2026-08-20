@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useCurrentUser } from "@/lib/auth";
+import { useCurrentUser, signInWithGoogle } from "@/lib/auth";
 import { Car, CheckCircle2, Trash2, Users, CalendarDays } from "lucide-react";
 import { BrandHeader } from "@/components/BrandHeader";
 import { Button } from "@/components/ui/button";
@@ -45,7 +45,27 @@ function AdminPage() {
   const adminEmails = (import.meta.env["VITE_ADMIN_EMAILS"] ?? "").split(",").map((e: string) => e.trim());
 const isAdmin = !!user?.email && adminEmails.includes(user.email);
 
-  if (!user || !isAdmin) {
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background">
+        <BrandHeader />
+        <main className="mx-auto max-w-md px-4 py-20 text-center">
+          <h1 className="text-2xl font-bold">Área restrita</h1>
+          <p className="mt-2 text-muted-foreground">
+            Faça login com sua conta Google para continuar.
+          </p>
+          <Button
+            className="mt-8 w-full gap-2"
+            onClick={() => void signInWithGoogle()}
+          >
+            Entrar com Google
+          </Button>
+        </main>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
     return (
       <div className="min-h-screen bg-background">
         <BrandHeader />

@@ -364,10 +364,26 @@ function Index() {
             <div className="h-px w-16" style={{ background: "#ea580c" }} />
           </div>
 
-          <div className="flex flex-col items-center gap-1 text-center pb-2 px-4">
+          <div className="flex flex-col items-center gap-2 text-center pb-2 px-4">
             <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.18)" }}>
               © {new Date().getFullYear()} Full Sound Garage — Todos os direitos reservados
             </p>
+            <div className="flex gap-4">
+              <Link
+                to="/privacidade"
+                className="text-[10px] transition-colors duration-150"
+                style={{ color: "rgba(255,255,255,0.22)" }}
+              >
+                Política de Privacidade
+              </Link>
+              <Link
+                to="/termos"
+                className="text-[10px] transition-colors duration-150"
+                style={{ color: "rgba(255,255,255,0.22)" }}
+              >
+                Termos de Uso
+              </Link>
+            </div>
           </div>
         </footer>
       </main>

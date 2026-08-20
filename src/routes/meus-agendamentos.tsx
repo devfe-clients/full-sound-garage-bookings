@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { ChevronLeft, CalendarDays, Clock, RotateCcw, X } from "lucide-react";
 import { BrandHeader } from "@/components/BrandHeader";
-import { useCurrentUser, signInWithGoogle, authEnabled } from "@/lib/auth";
+import { useCurrentUser, signInWithGoogle, authEnabled, signOut } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -215,6 +215,15 @@ function MeusAgendamentosPage() {
       {user ? `Olá, ${user.name.split(" ")[0]}. ` : ""}Acompanhe, reagende ou cancele seus horários.
     </p>
   </div>
+  {user && (
+    <Button
+      size="sm"
+      variant="outline"
+      onClick={() => void signOut()}
+    >
+      Sair
+    </Button>
+  )}
 </div>
 
         {/* ── Ativos ── */}

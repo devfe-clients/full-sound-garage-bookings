@@ -1,6 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
-import { ChevronLeft, CalendarDays, Clock, RotateCcw, X } from "lucide-react";
+import { createFileRoute, Link, useSearch } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
+import { ChevronLeft, CalendarDays, Clock, RotateCcw, X, Sparkles } from "lucide-react";
 import { BrandHeader } from "@/components/BrandHeader";
 import { useCurrentUser, signInWithGoogle, authEnabled, signOut } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,9 @@ import {
 } from "@/lib/booking-store";
 
 export const Route = createFileRoute("/meus-agendamentos")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    novo: search["novo"] === "1" ? "1" as const : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Meus agendamentos — Full Sound Garage" },
@@ -157,6 +160,13 @@ function MeusAgendamentosPage() {
   const user = useCurrentUser();
   const { bookings, loading } = useMyBookings(user?.email ?? "");
   const [rescheduling, setRescheduling] = useState<string | null>(null);
+  const search = useSearch({ from: "/meus-agendamentos" });
+  const novo = search["novo"];
+  const [showModal, setShowModal] = useState(false);
+
+  useEffect(() => {
+    if (novo === "1") setShowModal(true);
+  }, [novo]);
 
   if (loading) {
     return (
@@ -199,6 +209,22 @@ function MeusAgendamentosPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-background p-8 text-center shadow-2xl">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground">
+              <Sparkles className="h-8 w-8" />
+            </div>
+            <h2 className="mt-5 text-xl font-bold">Agendamento enviado!</h2>
+            <p className="mt-3 text-xs text-muted-foreground">
+              A garagem vai confirmar sua reserva em breve. Pagamento no local.
+            </p>
+            <Button className="mt-6 w-full" onClick={() => setShowModal(false)}>
+              Ver meus agendamentos
+            </Button>
+          </div>
+        </div>
+      )}
       <BrandHeader />
       <main className="mx-auto max-w-2xl px-4 py-8">
         <Link

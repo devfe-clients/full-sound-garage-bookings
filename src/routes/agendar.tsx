@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Check, ChevronLeft, Clock, Sparkles } from "lucide-react";
 import { BrandHeader } from "@/components/BrandHeader";
@@ -47,12 +47,12 @@ export const Route = createFileRoute("/agendar")({
 });
 
 function AgendarPage() {
+  const router = useRouter();
   const days = useMemo(() => availableDays(14), []);
   const currentUser = useCurrentUser();
   const [service, setService] = useState<ServiceId | null>(null);
   const [date, setDate] = useState<string | null>(null);
   const [time, setTime] = useState<string | null>(null);
-  const [done, setDone] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [step, setStep] = useState<"form" | "review">("form");
   const [form, setForm] = useState({
@@ -76,33 +76,9 @@ async function handleSubmit(e: React.FormEvent) {
   e.preventDefault();
 }
 
-  if (step === "review" && service && date && time && !done) {
+  if (step === "review" && service && date && time) {
   return (
     <div className="min-h-screen bg-background">
-      {done && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-          <div className="w-full max-w-sm rounded-2xl border border-border bg-background p-8 text-center shadow-2xl">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground">
-              <Sparkles className="h-8 w-8" />
-            </div>
-            <h2 className="mt-5 text-xl font-bold">Agendamento enviado!</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {serviceName(service!)} · {formatDate(date!)} às {time}
-            </p>
-            <p className="mt-3 text-xs text-muted-foreground">
-              A garagem vai confirmar sua reserva em breve. Pagamento no local.
-            </p>
-            <div className="mt-6 flex flex-col gap-2">
-              <Button asChild className="w-full">
-                <Link to="/meus-agendamentos">Ver meus agendamentos</Link>
-              </Button>
-              <Button asChild variant="outline" className="w-full">
-                <Link to="/">Voltar ao início</Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <BrandHeader />
       <main className="mx-auto max-w-xl px-4 py-8">
@@ -152,7 +128,7 @@ onClick={async () => {
       vehicle: { brand: form.brand, model: form.model, year: form.year },
       notes: form.notes,
     });
-    setDone(booking.id);
+    void router.navigate({ to: "/meus-agendamentos", search: { novo: "1" } });
   } finally {
     setSubmitting(false);
   }

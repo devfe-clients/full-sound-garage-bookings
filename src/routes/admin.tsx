@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { useCurrentUser } from "@/lib/auth";
 import { Car, CheckCircle2, Trash2, Users, CalendarDays } from "lucide-react";
 import { BrandHeader } from "@/components/BrandHeader";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,7 @@ import {
   formatDate,
   serviceName,
   setBookingStatus,
-  useBookings,
+  useAllBookings,
 } from "@/lib/booking-store";
 
 export const Route = createFileRoute("/admin")({
@@ -38,7 +39,36 @@ const statusStyle: Record<BookingStatus, string> = {
 };
 
 function AdminPage() {
-  const bookings = useBookings();
+  const user = useCurrentUser();
+  const { bookings, loading } = useAllBookings();
+
+  //proteção da rota admin
+  const isAdmin = user?.email === "SEU_EMAIL_AQUI@gmail.com";
+
+  if (!user || !isAdmin) {
+    return (
+      <div className="min-h-screen bg-background">
+        <BrandHeader />
+        <main className="mx-auto max-w-md px-4 py-20 text-center">
+          <h1 className="text-2xl font-bold">Acesso restrito</h1>
+          <p className="mt-2 text-muted-foreground">
+            Esta área é exclusiva para a equipe Full Sound Garage.
+          </p>
+        </main>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <BrandHeader />
+        <main className="mx-auto max-w-5xl px-4 py-8">
+          <p className="text-muted-foreground">Carregando painel...</p>
+        </main>
+      </div>
+    );
+  }
   const [filter, setFilter] = useState<"todos" | BookingStatus>("todos");
 
   const sorted = useMemo(
@@ -136,7 +166,7 @@ function AdminPage() {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {b.status !== "confirmada" && (
-                      <Button size="sm" onClick={() => setBookingStatus(b.id, "confirmada")}>
+                      <Button size="sm" onClick={() => void setBookingStatus(b.id, "confirmada")}>
                         Reserva confirmada
                       </Button>
                     )}
@@ -144,7 +174,7 @@ function AdminPage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => setBookingStatus(b.id, "concluida")}
+                        onClick={() => void setBookingStatus(b.id, "concluida")}
                       >
                         Concluir
                       </Button>
@@ -153,12 +183,12 @@ function AdminPage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => setBookingStatus(b.id, "cancelada")}
+                        onClick={() => void setBookingStatus(b.id, "cancelada")}
                       >
                         Cancelar
                       </Button>
                     )}
-                    <Button size="icon" variant="ghost" onClick={() => deleteBooking(b.id)}>
+                    <Button size="icon" variant="ghost" onClick={() => void deleteBooking(b.id)}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>

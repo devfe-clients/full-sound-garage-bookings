@@ -1,4 +1,18 @@
-import { useSyncExternalStore } from "react";
+import { useState, useEffect } from "react";
+import {
+  collection,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  query,
+  where,
+  onSnapshot,
+  orderBy,
+} from "firebase/firestore";
+import { db } from "./firebase";
+
+// ── Tipos ──────────────────────────────────────────────────────────────────
 
 export type ServiceId = "insulfilme" | "envelopamento" | "som" | "leds";
 
@@ -52,55 +66,121 @@ export type Booking = {
   notes?: string;
 };
 
-const KEY = "fsg.bookings.v1";
+//documento salvo no Firestore (sem o id, que vem do doc.id)
+type BookingDoc = Omit<Booking, "id">;
 
-let cache: Booking[] | null = null;
-const listeners = new Set<() => void>();
+const COL = "bookings";
 
-function read(): Booking[] {
-  if (typeof window === "undefined") return [];
-  if (cache) return cache;
-  try {
-    cache = JSON.parse(window.localStorage.getItem(KEY) ?? "[]") as Booking[];
-  } catch {
-    cache = [];
-  }
-  return cache;
+// Hooks de leitura
+
+/** Agendamentos do cliente logado, ordenados por data/hora. */
+export function useMyBookings(email: string): { bookings: Booking[]; loading: boolean } {
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!email) {
+      setBookings([]);
+      setLoading(false);
+      return;
+    }
+
+    const q = query(
+      collection(db, COL),
+      where("customer.email", "==", email),
+      orderBy("date"),
+      orderBy("time"),
+    );
+
+    const unsub = onSnapshot(q, (snap) => {
+      setBookings(
+        snap.docs.map((d) => ({ id: d.id, ...(d.data() as BookingDoc) })),
+      );
+      setLoading(false);
+    });
+
+    return unsub;
+  }, [email]);
+
+  return { bookings, loading };
 }
 
-function write(next: Booking[]) {
-  cache = next;
-  window.localStorage.setItem(KEY, JSON.stringify(next));
-  listeners.forEach((l) => l());
+/**todos os agendamentos — exclusivo para o painel admin. */
+export function useAllBookings(): { bookings: Booking[]; loading: boolean } {
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const q = query(
+      collection(db, COL),
+      orderBy("date"),
+      orderBy("time"),
+    );
+
+    const unsub = onSnapshot(q, (snap) => {
+      setBookings(
+        snap.docs.map((d) => ({ id: d.id, ...(d.data() as BookingDoc) })),
+      );
+      setLoading(false);
+    });
+
+    return unsub;
+  }, []);
+
+  return { bookings, loading };
 }
 
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
+export function useDayBookings(date: string): { takenTimes: string[]; loading: boolean } {
+  const [takenTimes, setTakenTimes] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!date) {
+      setTakenTimes([]);
+      setLoading(false);
+      return;
+    }
+
+    const q = query(
+      collection(db, COL),
+      where("date", "==", date),
+      where("status", "!=", "cancelada"),
+    );
+
+    const unsub = onSnapshot(q, (snap) => {
+      setTakenTimes(snap.docs.map((d) => (d.data() as BookingDoc).time));
+      setLoading(false);
+    });
+
+    return unsub;
+  }, [date]);
+
+  return { takenTimes, loading };
 }
 
-export function useBookings(): Booking[] {
-  return useSyncExternalStore(subscribe, read, () => [] as Booking[]);
-}
+// Ações
 
-export function createBooking(input: Omit<Booking, "id" | "createdAt" | "status">): Booking {
-  const booking: Booking = {
+export async function createBooking(
+  input: Omit<Booking, "id" | "createdAt" | "status">,
+): Promise<Booking> {
+  const data: BookingDoc = {
     ...input,
-    id: crypto.randomUUID(),
     createdAt: new Date().toISOString(),
     status: "pendente",
   };
-  write([...read(), booking]);
-  return booking;
+  const ref = await addDoc(collection(db, COL), data);
+  return { id: ref.id, ...data };
 }
 
-export function setBookingStatus(id: string, status: BookingStatus) {
-  write(read().map((b) => (b.id === id ? { ...b, status } : b)));
+export async function setBookingStatus(id: string, status: BookingStatus): Promise<void> {
+  await updateDoc(doc(db, COL, id), { status });
 }
 
-export function deleteBooking(id: string) {
-  write(read().filter((b) => b.id !== id));
+export async function deleteBooking(id: string): Promise<void> {
+  await deleteDoc(doc(db, COL, id));
 }
+
+// Helpers puros (sem mudança)
 
 /** Dias úteis disponíveis (seg–sáb) a partir de amanhã. */
 export function availableDays(count = 14): Date[] {
@@ -120,7 +200,11 @@ export function toISODate(d: Date) {
 
 export function formatDate(iso: string) {
   const parts = iso.split("-").map(Number);
-  return new Date(parts[0] ?? 2026, (parts[1] ?? 1) - 1, parts[2] ?? 1).toLocaleDateString("pt-BR", {
+  return new Date(
+    parts[0] ?? 2026,
+    (parts[1] ?? 1) - 1,
+    parts[2] ?? 1,
+  ).toLocaleDateString("pt-BR", {
     weekday: "short",
     day: "2-digit",
     month: "short",
@@ -131,6 +215,9 @@ export function serviceName(id: ServiceId) {
   return SERVICES.find((s) => s.id === id)?.name ?? id;
 }
 
-export function takenSlots(bookings: Booking[], date: string) {
-  return bookings.filter((b) => b.date === date && b.status !== "cancelada").map((b) => b.time);
+/** Mantido para compatibilidade — recebe lista e data, retorna times ocupados. */
+export function takenSlots(bookings: Booking[], date: string): string[] {
+  return bookings
+    .filter((b) => b.date === date && b.status !== "cancelada")
+    .map((b) => b.time);
 }

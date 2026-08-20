@@ -16,6 +16,16 @@ dist-ssr
 .nitro
 *.local
 
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Firebase Credentials & Keys (Admin SDK)
+*-firebase-adminsdk-*.json
+firebase-*.json
+*.pem
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars

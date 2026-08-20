@@ -34,16 +34,48 @@ export const Route = createFileRoute("/admin")({
 const statusStyle: Record<BookingStatus, string> = {
   pendente: "bg-muted text-muted-foreground",
   confirmada: "bg-primary text-primary-foreground",
-  cancelada: "bg-ink text-ink-foreground",
-  concluida: "bg-success text-primary-foreground",
+  cancelada: "bg-destructive/20 text-destructive",
+  concluida: "bg-green-600/20 text-green-700 dark:text-green-400",
 };
 
 function AdminPage() {
+  // ── todos os hooks primeiro, sem exceção ──
   const user = useCurrentUser();
   const { bookings, loading } = useAllBookings();
+  const [filter, setFilter] = useState<"todos" | BookingStatus>("todos");
 
-  const adminEmails = (import.meta.env["VITE_ADMIN_EMAILS"] ?? "").split(",").map((e: string) => e.trim());
-const isAdmin = !!user?.email && adminEmails.includes(user.email);
+  const adminEmails = (import.meta.env["VITE_ADMIN_EMAILS"] ?? "")
+    .split(",")
+    .map((e: string) => e.trim());
+  const isAdmin = !!user?.email && adminEmails.includes(user.email);
+
+  const sorted = useMemo(
+    () =>
+      [...bookings]
+        .filter((b) => filter === "todos" || b.status === filter)
+        .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)),
+    [bookings, filter],
+  );
+
+  const clients = useMemo(() => {
+    const map = new Map<string, { name: string; phone: string; email: string; count: number }>();
+    bookings.forEach((b) => {
+      const key = b.customer.phone || b.customer.name;
+      const prev = map.get(key);
+      map.set(key, { ...b.customer, count: (prev?.count ?? 0) + 1 });
+    });
+    return [...map.values()];
+  }, [bookings]);
+
+  const byDay = useMemo(() => {
+    const map = new Map<string, typeof bookings>();
+    bookings
+      .filter((b) => b.status !== "cancelada")
+      .forEach((b) => map.set(b.date, [...(map.get(b.date) ?? []), b]));
+    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [bookings]);
+
+  // ── returns condicionais depois dos hooks ──
 
   if (!user) {
     return (
@@ -89,33 +121,6 @@ const isAdmin = !!user?.email && adminEmails.includes(user.email);
       </div>
     );
   }
-  const [filter, setFilter] = useState<"todos" | BookingStatus>("todos");
-
-  const sorted = useMemo(
-    () =>
-      [...bookings]
-        .filter((b) => filter === "todos" || b.status === filter)
-        .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)),
-    [bookings, filter],
-  );
-
-  const clients = useMemo(() => {
-    const map = new Map<string, { name: string; phone: string; email: string; count: number }>();
-    bookings.forEach((b) => {
-      const key = b.customer.phone || b.customer.name;
-      const prev = map.get(key);
-      map.set(key, { ...b.customer, count: (prev?.count ?? 0) + 1 });
-    });
-    return [...map.values()];
-  }, [bookings]);
-
-  const byDay = useMemo(() => {
-    const map = new Map<string, typeof bookings>();
-    bookings
-      .filter((b) => b.status !== "cancelada")
-      .forEach((b) => map.set(b.date, [...(map.get(b.date) ?? []), b]));
-    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  }, [bookings]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -182,12 +187,14 @@ const isAdmin = !!user?.email && adminEmails.includes(user.email);
                       {b.vehicle.brand} {b.vehicle.model} {b.vehicle.year}
                       {b.vehicle.plate ? ` · ${b.vehicle.plate}` : ""}
                     </p>
-                    {b.notes && <p className="mt-2 text-sm italic text-muted-foreground">“{b.notes}”</p>}
+                    {b.notes && (
+                      <p className="mt-2 text-sm italic text-muted-foreground">"{b.notes}"</p>
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {b.status !== "confirmada" && (
+                    {b.status !== "confirmada" && b.status !== "concluida" && b.status !== "cancelada" && (
                       <Button size="sm" onClick={() => void setBookingStatus(b.id, "confirmada")}>
-                        Reserva confirmada
+                        Confirmar reserva
                       </Button>
                     )}
                     {b.status === "confirmada" && (
